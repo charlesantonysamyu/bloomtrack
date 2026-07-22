@@ -1,0 +1,184 @@
+BloomTrack — Period & Fertility Tracking App
+Complete Implementation Plan
+Note: Your working directory D:\Projects\Period tracking app is currently empty — the previous session saved nothing, so we start fresh. No work is lost.
+
+1. Decisions Locked In
+Decision	Choice
+Platform	Cross-platform mobile (iOS + Android)
+Storage	Local-only, on-device, encrypted (no account, no cloud, nothing leaves the phone)
+Scope	Full feature set (built in a sensible order)
+Tech stack	My recommendation below
+Recommended Tech Stack — Flutter
+I recommend Flutter (Dart) for these reasons:
+
+One codebase → true native iOS + Android apps (+ web if you ever want it). Identical UI across devices.
+Best-in-class for data-heavy UIs — calendars, charts, forms, color-coded fertility rings all render smoothly.
+Strong local-first ecosystem: Drift (SQLite ORM) + SQLCipher for encryption, fl_chart for charts, table_calendar for calendars, flutter_local_notifications for reminders.
+Compiles to fast native code; smooth 60fps animations that matter for a daily-use wellness app.
+Full stack:
+
+Flutter 3.x + Dart 3.x
+Riverpod — modern, testable state management
+Drift + SQLCipher — local relational DB with at-rest encryption
+flutter_secure_storage — for the DB encryption key (stored in OS keychain/keystore)
+table_calendar — calendar view
+fl_chart — cycle-length & symptom trend charts
+flutter_local_notifications — reminders (period due, pill, self-exam)
+intl — date formatting & i18n
+If you'd strongly prefer React Native/Expo instead, say so and I'll swap the stack — the feature design is identical either way.
+
+2. Medical Calculation Logic (the engine)
+These formulas are backed by ACOG/Mayo Clinic/Cleveland Clinic (sources in the research notes).
+
+
+text
+avg_cycle_length   = average of user's last 6 cycles (fallback: 28)
+avg_period_length  = average of user's period lengths (fallback: 5)
+luteal_phase       = user setting (default 14, range 10–16)
+next_period_start  = last_period_start + avg_cycle_length
+ovulation_day      = next_period_start - luteal_phase
+fertile_window     = [ovulation_day - 5 days  …  ovulation_day]
+peak_fertility     = [ovulation_day - 2, ovulation_day - 1, ovulation_day]
+high_fertility     = [ovulation_day - 5 … ovulation_day - 3]
+"Baby chance" labels (what you asked for — higher/lower conception likelihood days):
+
+Label	Days	Meaning
+🟣 Peak fertility	Ovulation −2, −1, 0	Highest chance of pregnancy
+🟠 High fertility	Ovulation −5, −4, −3	Sex can lead to pregnancy (sperm survives ~5 days)
+🔵 Low / infertile	After ovulation + 24h, and early cycle	Lower chance of pregnancy
+⚪ Post-ovulation	Egg gone (luteal phase)	Very low chance until next cycle
+Prediction accuracy improves automatically after 2–3 logged cycles (we switch from the 28-day fallback to the user's own averages).
+
+3. Data Model (local SQLite tables)
+
+text
+profile            cycle_goal (track/predict/avoid pregnancy), avg_cycle_length,
+                   avg_period_length, luteal_phase, dob, reminders_enabled
+cycle              id, start_date, end_date (nullable if ongoing),
+                   cycle_length, period_length, notes
+flow_log           date, flow_level (spotting/light/medium/heavy),
+                   blood_color, has_clots, clot_size, pads_count, tampons_count,
+                   cup_disc, notes
+symptom_log        date, category (pain/mood/skin/energy/digestion/sleep/libido),
+                   symptom_key, severity (0-3), notes
+mucus_log          date, type (dry/sticky/creamy/watery/eggwhite), notes
+bbt_log            date, temperature, unit, time_taken
+opk_log            date, result (positive/negative)
+intercourse_log    date, with_protection (bool), method (condom/pill/etc),
+                   notes  ← this is your "did we have sex, with/without protection" feature
+prediction         cycle_id, ovulation_date, fertile_start, fertile_end,
+                   method (calendar/avg), confidence
+reminder           type, time_of_day, days_before, enabled
+4. Feature Modules (your full request, organized)
+A. Period Tracking
+Log start date & end date (tap to start; ongoing period banner until ended)
+Daily flow level: spotting / light / medium / heavy
+Bleeding details (the part you emphasized):
+Blood color picker: bright red, dark red, brown, pink, orange, gray, black — each with an inline "what this usually means" hint
+Clots: yes/no + size (small/large) → flags large clots
+Pads/tampons changed that day: count → used for heavy-bleeding alerts
+Notes field
+B. Ovulation & Fertility
+Ovulation day prediction (formula above)
+Fertile window highlighted on calendar (high vs. peak colors)
+"Baby chance" view: a per-day label of higher/lower conception likelihood (your explicit request)
+Cervical mucus logging (5-stage scale → ties directly to fertility)
+Basal body temperature logging + chart (confirms ovulation)
+OPK/LH test result logging
+C. Intimacy / Sex Log (your request)
+Mark dates intercourse happened
+With protection / without protection toggle
+Protection method (condom, pill, IUD, none, etc.)
+Correlates automatically with fertility labels (e.g., "unprotected sex on a peak-fertility day" gets a contextual note)
+D. Symptoms
+Cramps, breast tenderness, headaches/migraines, backache, bloating, nausea, acne, fatigue, mood swings, irritability, anxiety, libido, sleep, cravings, digestion (60+ predefined tags)
+Severity rating per symptom
+E. Calendar & Insights
+Color-coded calendar: period, spotting, fertile window, peak day, ovulation, intercourse days, symptom days
+Cycle history list with lengths
+Charts: cycle-length trend, period-length trend, symptom frequency, BBT curve
+PDF export of cycle history (great for doctor visits)
+F. Health Alerts & Disclaimers (built-in safety)
+Auto-flags and suggests "consider seeing a doctor" when:
+
+Cycle < 21 or > 35 days, or variation > 9 days between cycles
+Period > 7 days
+Heavy bleeding: pads soaked hourly for 2–3h, or large clots
+Unusual blood color (gray/orange)
+3+ missed periods
+Mandatory disclaimers (onboarding + footer):
+
+NOT a contraceptive method (fertility-awareness failure rate ~24%/yr)
+NOT a diagnostic tool or pregnancy test
+"See a doctor if…" quick-reference
+G. Reminders
+Period approaching (X days before, based on prediction)
+Daily logging nudge
+Contraceptive/pill reminder
+Self-exam reminder
+H. Privacy & Settings
+Onboarding: explains all data stays on device, encrypted
+Optional app PIN/biometric lock
+Theme (light/dark), units (°C/°F), cycle goal
+Data export (JSON/CSV) + full delete
+5. App Navigation (bottom tab bar)
+
+text
+[ Today ]   [ Calendar ]   [ + Log ]   [ Insights ]   [ More ]
+   │            │              │            │            │
+ Home      Month view     Quick-add    Charts       Settings
+ summary   + tap-to-log   sheet for    & history    Profile
+ + next    any day        symptoms,    + export     Privacy
+ events    detail         sex, flow    + alerts     Disclaimers
+6. Project Structure
+
+text
+bloomtrack/
+├─ lib/
+│  ├─ main.dart
+│  ├─ app.dart                    # theme, router
+│  ├─ core/
+│  │  ├─ constants.dart           # cycle ranges, color meanings, disclaimers
+│  │  ├─ theme.dart               # colors (fertile=orange, peak=purple, etc)
+│  │  └─ utils/
+│  │     ├─ cycle_calculator.dart # ovulation, fertile window logic
+│  │     └─ health_checks.dart    # abnormal-cycle detection
+│  ├─ data/
+│  │  ├─ database.dart            # Drift setup + SQLCipher
+│  │  ├─ tables/                  # one file per table above
+│  │  ├─ daos/                    # queries per entity
+│  │  └─ secure_storage.dart      # encryption key storage
+│  ├─ features/
+│  │  ├─ today/        home screen
+│  │  ├─ calendar/     month + day detail
+│  │  ├─ logging/      flow, symptoms, sex, mucus, bbt, opk entry sheets
+│  │  ├─ insights/     charts + history + export
+│  │  ├─ fertility/    baby-chance view, prediction detail
+│  │  ├─ reminders/
+│  │  └─ settings/
+│  └─ shared/widgets/  flow_picker, color_legend, cycle_ring, etc.
+├─ assets/            icons, illustrations
+└─ test/              unit tests for the calculator (critical)
+7. Implementation Order (sensible build sequence — still full scope)
+Even though we're building everything, this order keeps each step shippable/testable:
+
+Scaffold — Flutter project, theme, navigation shell, Drift DB + encrypted setup
+Profile + first period log — start/end dates, store cycle
+Cycle calculator + unit tests — ovulation, fertile window, baby-chance labels (test the math early!)
+Daily flow + bleeding details — color, clots, pads count
+Calendar view — color-coded days, tap-to-view
+Fertility views — ovulation/peak/high/low display, baby-chance screen
+Intimacy log — sex + protection tracking with fertility correlation
+Symptoms — full tag library + severity
+Cervical mucus, BBT, OPK logging + BBT chart
+Insights — cycle-length/period charts, symptom stats, history
+Health alerts — abnormal-detection + disclaimers UI
+Reminders — local notifications
+Settings — PIN lock, export, theme, units, delete
+Polish — empty states, onboarding flow, app icon, PDF export for doctors
+Build & test on device — then prep for app store submission
+8. What I'll Need From You to Start
+Confirm Flutter as the stack (or tell me React Native instead)
+Confirm the app name ("BloomTrack" is a placeholder)
+Whether you have Flutter SDK installed, or want me to include setup steps in the first task
+I'll begin with Step 1 (scaffold + encrypted DB + navigation shell) as soon as you approve, and work through the sequence above, checking in at each milestone.
