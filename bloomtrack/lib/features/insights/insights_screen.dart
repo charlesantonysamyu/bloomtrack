@@ -492,6 +492,19 @@ class InsightsScreen extends ConsumerWidget {
         double minY = logs.map((e) => e.temperature).reduce((a, b) => a < b ? a : b) - 0.5;
         double maxY = logs.map((e) => e.temperature).reduce((a, b) => a > b ? a : b) + 0.5;
 
+        bool thermalShiftDetected = false;
+        DateTime? shiftDate;
+        if (logs.length >= 6) {
+          for (int i = 6; i < logs.length; i++) {
+            final prevAvg = logs.sublist(i - 6, i).map((e) => e.temperature).reduce((a, b) => a + b) / 6;
+            if (logs[i].temperature >= prevAvg + 0.2) {
+              thermalShiftDetected = true;
+              shiftDate = logs[i].date;
+              break;
+            }
+          }
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -501,14 +514,13 @@ class InsightsScreen extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 250,
+              height: 200,
               child: LineChart(
                 LineChartData(
                   minY: minY,
                   maxY: maxY,
-                  gridData: FlGridData(show: true),
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
@@ -557,6 +569,32 @@ class InsightsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            if (thermalShiftDetected && shiftDate != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.peakFertility.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.peakFertility.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.show_chart, color: AppColors.peakFertility),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Thermal Shift Detected on ${DateFormat.MMMd().format(shiftDate)} — Potential Ovulation Confirmed.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AppColors.peakFertility,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },
