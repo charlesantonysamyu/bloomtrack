@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' as drift;
 
 import 'package:bloomtrack/core/theme.dart';
 import 'package:bloomtrack/core/constants.dart';
@@ -354,6 +355,28 @@ class _SelectedDayDetails extends ConsumerWidget {
     required this.buildLegendItem,
   });
 
+  Future<bool> _confirmDelete(BuildContext context, String itemLabel) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Delete $itemLabel?'),
+            content: Text('Are you sure you want to delete this $itemLabel log?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -381,6 +404,31 @@ class _SelectedDayDetails extends ConsumerWidget {
         opkLogs.isNotEmpty;
 
     final selectedLevel = getFertilityLevel(selectedDay, cycles);
+
+    // Collect notes
+    final notesList = <String>[];
+    for (final log in flowLogs) {
+      if (log.notes != null && log.notes!.isNotEmpty) {
+        notesList.add('Period: ${log.notes}');
+      }
+    }
+    for (final log in symptomLogs) {
+      if (log.notes != null && log.notes!.isNotEmpty) {
+        notesList.add('Symptom (${log.symptomKey}): ${log.notes}');
+      }
+    }
+    for (final log in intimacyLogs) {
+      if (log.notes != null && log.notes!.isNotEmpty) {
+        notesList.add('Intimacy: ${log.notes}');
+      }
+    }
+    for (final log in mucusLogs) {
+      if (log.notes != null && log.notes!.isNotEmpty) {
+        notesList.add('Mucus: ${log.notes}');
+      }
+    }
+
+    final db = ref.read(databaseProvider);
 
     return SingleChildScrollView(
       child: Column(
@@ -421,31 +469,82 @@ class _SelectedDayDetails extends ConsumerWidget {
                   Chip(
                     avatar: const Icon(Icons.water_drop, size: 16, color: AppColors.period),
                     label: Text('Flow: ${flowLogs.first.flowLevel}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'Period Flow')) {
+                        final flowDao = ref.read(flowLogDaoProvider);
+                        await flowDao.deleteFlowLog(flowLogs.first.id);
+                      }
+                    },
                   ),
                 if (symptomLogs.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.sentiment_satisfied_alt, size: 16, color: AppColors.secondary),
                     label: Text('Symptoms: ${symptomLogs.map((s) => s.symptomKey).join(', ')}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'Symptoms')) {
+                        final startOfDay = date;
+                        final endOfDay = startOfDay.add(const Duration(days: 1));
+                        await (db.delete(db.symptomLogs)
+                              ..where((s) => s.date.isBiggerOrEqualValue(startOfDay) & s.date.isSmallerThanValue(endOfDay)))
+                            .go();
+                      }
+                    },
                   ),
                 if (intimacyLogs.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.favorite, size: 16, color: AppColors.intercourse),
                     label: Text('Intimacy: ${intimacyLogs.first.withProtection ? "Protected" : "Unprotected"}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'Intimacy')) {
+                        final startOfDay = date;
+                        final endOfDay = startOfDay.add(const Duration(days: 1));
+                        await (db.delete(db.intercourseLogs)
+                              ..where((i) => i.date.isBiggerOrEqualValue(startOfDay) & i.date.isSmallerThanValue(endOfDay)))
+                            .go();
+                      }
+                    },
                   ),
                 if (mucusLogs.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.opacity, size: 16, color: AppColors.info),
                     label: Text('Mucus: ${mucusLogs.first.type}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'Mucus')) {
+                        final startOfDay = date;
+                        final endOfDay = startOfDay.add(const Duration(days: 1));
+                        await (db.delete(db.mucusLogs)
+                              ..where((m) => m.date.isBiggerOrEqualValue(startOfDay) & m.date.isSmallerThanValue(endOfDay)))
+                            .go();
+                      }
+                    },
                   ),
                 if (bbtLogs.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.thermostat, size: 16, color: AppColors.accent),
                     label: Text('BBT: ${bbtLogs.first.temperature}°${bbtLogs.first.unit}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'BBT')) {
+                        final startOfDay = date;
+                        final endOfDay = startOfDay.add(const Duration(days: 1));
+                        await (db.delete(db.bbtLogs)
+                              ..where((b) => b.date.isBiggerOrEqualValue(startOfDay) & b.date.isSmallerThanValue(endOfDay)))
+                            .go();
+                      }
+                    },
                   ),
                 if (opkLogs.isNotEmpty)
                   Chip(
                     avatar: const Icon(Icons.science, size: 16, color: AppColors.peakFertility),
                     label: Text('OPK: ${opkLogs.first.result}'),
+                    onDeleted: () async {
+                      if (await _confirmDelete(context, 'OPK')) {
+                        final startOfDay = date;
+                        final endOfDay = startOfDay.add(const Duration(days: 1));
+                        await (db.delete(db.opkLogs)
+                              ..where((o) => o.date.isBiggerOrEqualValue(startOfDay) & o.date.isSmallerThanValue(endOfDay)))
+                            .go();
+                      }
+                    },
                   ),
               ],
             ),
@@ -457,6 +556,30 @@ class _SelectedDayDetails extends ConsumerWidget {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
+            const SizedBox(height: 16),
+          ],
+          if (notesList.isNotEmpty) ...[
+            Text('Notes:', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            ...notesList.map((note) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.note_alt_outlined, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(note, style: theme.textTheme.bodyMedium)),
+                      ],
+                    ),
+                  ),
+                )),
             const SizedBox(height: 16),
           ],
           SizedBox(
