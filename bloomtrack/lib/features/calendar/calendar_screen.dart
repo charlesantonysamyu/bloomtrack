@@ -8,6 +8,7 @@ import 'package:bloomtrack/core/constants.dart';
 import 'package:bloomtrack/core/utils/cycle_calculator.dart';
 import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/providers.dart';
+import 'package:bloomtrack/features/logging/log_sheet.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -291,58 +292,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_selectedDay != null) ...[
-                        Text(
-                          DateFormat.yMMMMd().format(_selectedDay!),
-                          style: theme.textTheme.titleLarge,
+                  child: _selectedDay != null
+                      ? _SelectedDayDetails(
+                          selectedDay: _selectedDay!,
+                          cycles: cycles,
+                          getFertilityLevel: _getFertilityLevelForDate,
+                          buildDayDetail: _buildDayDetail,
+                          buildLegendItem: _buildLegendItem,
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select a date',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 24),
+                            const Divider(),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Legend',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              children: [
+                                _buildLegendItem(context, 'Period', AppColors.period),
+                                _buildLegendItem(context, 'Spotting', Colors.pink.shade100),
+                                _buildLegendItem(context, 'High Fertility', AppColors.highFertility),
+                                _buildLegendItem(context, 'Peak Fertility', AppColors.peakFertility),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Builder(
-                          builder: (context) {
-                            final selectedLevel = _getFertilityLevelForDate(_selectedDay!, cycles);
-                            if (selectedLevel == FertilityLevel.period) {
-                              return _buildDayDetail(context, 'Period Day', AppColors.period);
-                            } else if (selectedLevel == FertilityLevel.peak) {
-                              return _buildDayDetail(context, 'Peak Fertility', AppColors.peakFertility);
-                            } else if (selectedLevel == FertilityLevel.high) {
-                              return _buildDayDetail(context, 'High Fertility', AppColors.highFertility);
-                            } else {
-                              return Text(
-                                'No events logged for this day.',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ] else ...[
-                        Text(
-                          'Select a date',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Legend',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        children: [
-                          _buildLegendItem(context, 'Period', AppColors.period),
-                          _buildLegendItem(context, 'Spotting', Colors.pink.shade100),
-                          _buildLegendItem(context, 'High Fertility', AppColors.highFertility),
-                          _buildLegendItem(context, 'Peak Fertility', AppColors.peakFertility),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],
@@ -356,3 +338,154 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 }
+
+class _SelectedDayDetails extends ConsumerWidget {
+  final DateTime selectedDay;
+  final List<Cycle> cycles;
+  final FertilityLevel Function(DateTime, List<Cycle>) getFertilityLevel;
+  final Widget Function(BuildContext, String, Color) buildDayDetail;
+  final Widget Function(BuildContext, String, Color) buildLegendItem;
+
+  const _SelectedDayDetails({
+    required this.selectedDay,
+    required this.cycles,
+    required this.getFertilityLevel,
+    required this.buildDayDetail,
+    required this.buildLegendItem,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final date = DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+
+    final flowLogsAsync = ref.watch(flowLogsForDateProvider(date));
+    final symptomLogsAsync = ref.watch(symptomLogsForDateProvider(date));
+    final intimacyLogsAsync = ref.watch(intercourseLogsForDateProvider(date));
+    final mucusLogsAsync = ref.watch(mucusLogsForDateProvider(date));
+    final bbtLogsAsync = ref.watch(bbtLogsForDateProvider(date));
+    final opkLogsAsync = ref.watch(opkLogsForDateProvider(date));
+
+    final flowLogs = flowLogsAsync.value ?? [];
+    final symptomLogs = symptomLogsAsync.value ?? [];
+    final intimacyLogs = intimacyLogsAsync.value ?? [];
+    final mucusLogs = mucusLogsAsync.value ?? [];
+    final bbtLogs = bbtLogsAsync.value ?? [];
+    final opkLogs = opkLogsAsync.value ?? [];
+
+    final hasAnyLogs = flowLogs.isNotEmpty ||
+        symptomLogs.isNotEmpty ||
+        intimacyLogs.isNotEmpty ||
+        mucusLogs.isNotEmpty ||
+        bbtLogs.isNotEmpty ||
+        opkLogs.isNotEmpty;
+
+    final selectedLevel = getFertilityLevel(selectedDay, cycles);
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  DateFormat.yMMMMd().format(selectedDay),
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                onPressed: () => LogSheet.show(context, initialDate: selectedDay),
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'Add Log',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (selectedLevel == FertilityLevel.period)
+            buildDayDetail(context, 'Period Day', AppColors.period)
+          else if (selectedLevel == FertilityLevel.peak)
+            buildDayDetail(context, 'Peak Fertility', AppColors.peakFertility)
+          else if (selectedLevel == FertilityLevel.high)
+            buildDayDetail(context, 'High Fertility', AppColors.highFertility),
+          const SizedBox(height: 12),
+          if (hasAnyLogs) ...[
+            Text('Logged Items:', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (flowLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.water_drop, size: 16, color: AppColors.period),
+                    label: Text('Flow: ${flowLogs.first.flowLevel}'),
+                  ),
+                if (symptomLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.sentiment_satisfied_alt, size: 16, color: AppColors.secondary),
+                    label: Text('Symptoms: ${symptomLogs.map((s) => s.symptomKey).join(', ')}'),
+                  ),
+                if (intimacyLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.favorite, size: 16, color: AppColors.intercourse),
+                    label: Text('Intimacy: ${intimacyLogs.first.withProtection ? "Protected" : "Unprotected"}'),
+                  ),
+                if (mucusLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.opacity, size: 16, color: AppColors.info),
+                    label: Text('Mucus: ${mucusLogs.first.type}'),
+                  ),
+                if (bbtLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.thermostat, size: 16, color: AppColors.accent),
+                    label: Text('BBT: ${bbtLogs.first.temperature}°${bbtLogs.first.unit}'),
+                  ),
+                if (opkLogs.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.science, size: 16, color: AppColors.peakFertility),
+                    label: Text('OPK: ${opkLogs.first.result}'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            Text(
+              'No custom logs for this date.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => LogSheet.show(context, initialDate: selectedDay),
+              icon: const Icon(Icons.edit_calendar),
+              label: Text('Log Data for ${DateFormat.MMMd().format(selectedDay)}'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 12),
+          Text(
+            'Legend',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            children: [
+              buildLegendItem(context, 'Period', AppColors.period),
+              buildLegendItem(context, 'Spotting', Colors.pink.shade100),
+              buildLegendItem(context, 'High Fertility', AppColors.highFertility),
+              buildLegendItem(context, 'Peak Fertility', AppColors.peakFertility),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+

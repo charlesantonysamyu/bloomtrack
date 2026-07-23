@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart';
 import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/database_provider.dart';
 
@@ -59,4 +60,49 @@ final datesWithSpottingProvider = StreamProvider<Set<DateTime>>((ref) {
       .map((logs) {
     return logs.map((l) => DateTime(l.date.year, l.date.month, l.date.day)).toSet();
   });
+});
+
+final symptomLogsForDateProvider = StreamProvider.family<List<SymptomLog>, DateTime>((ref, date) {
+  final db = ref.watch(databaseProvider);
+  final startOfDay = DateTime(date.year, date.month, date.day);
+  final endOfDay = startOfDay.add(const Duration(days: 1));
+  return (db.select(db.symptomLogs)
+        ..where((s) => s.date.isBiggerOrEqualValue(startOfDay) & s.date.isSmallerThanValue(endOfDay)))
+      .watch();
+});
+
+final mucusLogsForDateProvider = StreamProvider.family<List<MucusLog>, DateTime>((ref, date) {
+  final db = ref.watch(databaseProvider);
+  final startOfDay = DateTime(date.year, date.month, date.day);
+  final endOfDay = startOfDay.add(const Duration(days: 1));
+  return (db.select(db.mucusLogs)
+        ..where((m) => m.date.isBiggerOrEqualValue(startOfDay) & m.date.isSmallerThanValue(endOfDay)))
+      .watch();
+});
+
+final bbtLogsForDateProvider = StreamProvider.family<List<BbtLog>, DateTime>((ref, date) {
+  final db = ref.watch(databaseProvider);
+  final startOfDay = DateTime(date.year, date.month, date.day);
+  final endOfDay = startOfDay.add(const Duration(days: 1));
+  return (db.select(db.bbtLogs)
+        ..where((b) => b.date.isBiggerOrEqualValue(startOfDay) & b.date.isSmallerThanValue(endOfDay)))
+      .watch();
+});
+
+final opkLogsForDateProvider = StreamProvider.family<List<OpkLog>, DateTime>((ref, date) {
+  final db = ref.watch(databaseProvider);
+  final startOfDay = DateTime(date.year, date.month, date.day);
+  final endOfDay = startOfDay.add(const Duration(days: 1));
+  return (db.select(db.opkLogs)
+        ..where((o) => o.date.isBiggerOrEqualValue(startOfDay) & o.date.isSmallerThanValue(endOfDay)))
+      .watch();
+});
+
+final intercourseLogsForDateProvider = StreamProvider.family<List<IntercourseLog>, DateTime>((ref, date) {
+  final db = ref.watch(databaseProvider);
+  final startOfDay = DateTime(date.year, date.month, date.day);
+  final endOfDay = startOfDay.add(const Duration(days: 1));
+  return (db.select(db.intercourseLogs)
+        ..where((i) => i.date.isBiggerOrEqualValue(startOfDay) & i.date.isSmallerThanValue(endOfDay)))
+      .watch();
 });

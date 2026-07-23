@@ -7,19 +7,20 @@ import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/providers.dart';
 import 'package:bloomtrack/shared/widgets/widgets.dart';
 
-void showPeriodLogSheet(BuildContext context) {
+void showPeriodLogSheet(BuildContext context, {DateTime? initialDate}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => const _PeriodLogSheet(),
+    builder: (context) => _PeriodLogSheet(initialDate: initialDate),
   );
 }
 
 class _PeriodLogSheet extends ConsumerStatefulWidget {
-  const _PeriodLogSheet();
+  final DateTime? initialDate;
+  const _PeriodLogSheet({this.initialDate});
 
   @override
   ConsumerState<_PeriodLogSheet> createState() => _PeriodLogSheetState();
@@ -34,7 +35,13 @@ class _PeriodLogSheetState extends ConsumerState<_PeriodLogSheet> {
   int _tamponsCount = 0;
   String? _notes;
   bool _isSaving = false;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
 
   Future<void> _save() async {
     if (_selectedFlow == null) return;

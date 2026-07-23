@@ -5,19 +5,20 @@ import 'package:drift/drift.dart' as drift;
 import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/providers.dart';
 
-void showBbtOpkLogSheet(BuildContext context) {
+void showBbtOpkLogSheet(BuildContext context, {DateTime? initialDate}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => const _BbtOpkLogSheet(),
+    builder: (context) => _BbtOpkLogSheet(initialDate: initialDate),
   );
 }
 
 class _BbtOpkLogSheet extends ConsumerStatefulWidget {
-  const _BbtOpkLogSheet();
+  final DateTime? initialDate;
+  const _BbtOpkLogSheet({this.initialDate});
 
   @override
   ConsumerState<_BbtOpkLogSheet> createState() => _BbtOpkLogSheetState();
@@ -27,7 +28,13 @@ class _BbtOpkLogSheetState extends ConsumerState<_BbtOpkLogSheet> {
   final TextEditingController _tempController = TextEditingController();
   String? _opkResult;
   bool _isSaving = false;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
 
   @override
   void dispose() {

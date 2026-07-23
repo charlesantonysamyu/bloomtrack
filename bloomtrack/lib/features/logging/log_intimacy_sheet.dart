@@ -7,19 +7,20 @@ import 'package:bloomtrack/core/utils/cycle_calculator.dart';
 import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/providers.dart';
 
-void showIntimacyLogSheet(BuildContext context) {
+void showIntimacyLogSheet(BuildContext context, {DateTime? initialDate}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => const _IntimacyLogSheet(),
+    builder: (context) => _IntimacyLogSheet(initialDate: initialDate),
   );
 }
 
 class _IntimacyLogSheet extends ConsumerStatefulWidget {
-  const _IntimacyLogSheet();
+  final DateTime? initialDate;
+  const _IntimacyLogSheet({this.initialDate});
 
   @override
   ConsumerState<_IntimacyLogSheet> createState() => _IntimacyLogSheetState();
@@ -29,7 +30,13 @@ class _IntimacyLogSheetState extends ConsumerState<_IntimacyLogSheet> {
   bool? _protected;
   String? _method;
   bool _isSaving = false;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
 
   final List<String> _methods = ['Condom', 'Pill', 'None'];
 

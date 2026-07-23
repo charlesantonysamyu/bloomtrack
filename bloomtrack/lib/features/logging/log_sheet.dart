@@ -7,17 +7,40 @@ import 'package:bloomtrack/features/logging/log_intimacy_sheet.dart';
 import 'package:bloomtrack/features/logging/log_mucus_sheet.dart';
 import 'package:bloomtrack/features/logging/log_bbt_opk_sheet.dart';
 
+import 'package:intl/intl.dart';
+
 /// Quick-log screen — a grid of tappable action cards for fast daily logging.
 class LogSheet extends StatelessWidget {
-  const LogSheet({super.key});
+  final DateTime? initialDate;
+
+  const LogSheet({super.key, this.initialDate});
+
+  static void show(BuildContext context, {DateTime? initialDate}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: LogSheet(initialDate: initialDate),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final actions = _getLogActions(initialDate);
+    final dateStr = initialDate != null ? DateFormat.yMMMMd().format(initialDate!) : 'today';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Log'),
+        title: Text(initialDate != null ? 'Log for ${DateFormat.yMMMd().format(initialDate!)}' : 'Log'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -33,13 +56,13 @@ class LogSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Tap an option to record today\'s data.',
+                'Tap an option to record data for $dateStr.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               const SizedBox(height: 20),
-              ..._logActions.map(
+              ...actions.map(
                 (action) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _LogActionCard(
@@ -78,49 +101,49 @@ class _LogAction {
   final void Function(BuildContext)? onTap;
 }
 
-/// Predefined log actions.
-const List<_LogAction> _logActions = [
+/// Predefined log actions with initialDate.
+List<_LogAction> _getLogActions(DateTime? initialDate) => [
   _LogAction(
     icon: Icons.water_drop_rounded,
     title: 'Log Period',
     subtitle: 'Flow level and blood color',
     color: AppColors.period,
-    onTap: showPeriodLogSheet,
+    onTap: (ctx) => showPeriodLogSheet(ctx, initialDate: initialDate),
   ),
   _LogAction(
     icon: Icons.sentiment_satisfied_alt_rounded,
     title: 'Log Symptoms',
     subtitle: 'Mood, pain, energy & more',
     color: AppColors.secondary,
-    onTap: showSymptomsLogSheet,
+    onTap: (ctx) => showSymptomsLogSheet(ctx, initialDate: initialDate),
   ),
   _LogAction(
     icon: Icons.favorite_rounded,
     title: 'Log Intimacy',
     subtitle: 'Activity and protection used',
     color: AppColors.intercourse,
-    onTap: showIntimacyLogSheet,
+    onTap: (ctx) => showIntimacyLogSheet(ctx, initialDate: initialDate),
   ),
   _LogAction(
     icon: Icons.opacity_rounded,
     title: 'Log Mucus',
     subtitle: 'Cervical mucus observations',
     color: AppColors.info,
-    onTap: showMucusLogSheet,
+    onTap: (ctx) => showMucusLogSheet(ctx, initialDate: initialDate),
   ),
   _LogAction(
     icon: Icons.thermostat_rounded,
     title: 'Log Temperature',
     subtitle: 'Basal body temperature',
     color: AppColors.accent,
-    onTap: showBbtOpkLogSheet,
+    onTap: (ctx) => showBbtOpkLogSheet(ctx, initialDate: initialDate),
   ),
   _LogAction(
     icon: Icons.science_rounded,
     title: 'Log OPK',
     subtitle: 'Ovulation predictor kit result',
     color: AppColors.peakFertility,
-    onTap: showBbtOpkLogSheet,
+    onTap: (ctx) => showBbtOpkLogSheet(ctx, initialDate: initialDate),
   ),
 ];
 

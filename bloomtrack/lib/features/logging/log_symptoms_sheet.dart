@@ -5,19 +5,20 @@ import 'package:drift/drift.dart' as drift;
 import 'package:bloomtrack/data/database.dart';
 import 'package:bloomtrack/data/providers/providers.dart';
 
-void showSymptomsLogSheet(BuildContext context) {
+void showSymptomsLogSheet(BuildContext context, {DateTime? initialDate}) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => const _SymptomsLogSheet(),
+    builder: (context) => _SymptomsLogSheet(initialDate: initialDate),
   );
 }
 
 class _SymptomsLogSheet extends ConsumerStatefulWidget {
-  const _SymptomsLogSheet();
+  final DateTime? initialDate;
+  const _SymptomsLogSheet({this.initialDate});
 
   @override
   ConsumerState<_SymptomsLogSheet> createState() => _SymptomsLogSheetState();
@@ -37,7 +38,13 @@ class _SymptomsLogSheetState extends ConsumerState<_SymptomsLogSheet> {
   };
 
   bool _isSaving = false;
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate ?? DateTime.now();
+  }
 
   bool get _hasSelection {
     return _selectedSymptoms.values.any((set) => set.isNotEmpty);
