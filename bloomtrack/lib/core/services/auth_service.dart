@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
 class AuthService {
@@ -16,8 +18,11 @@ class AuthService {
       return await _auth.authenticate(
         localizedReason: 'Please authenticate to access BloomTrack',
       );
+    } on PlatformException catch (e) {
+      debugPrint('Auth PlatformException: ${e.message}');
+      return false;
     } catch (e) {
-      // Handle any exceptions, e.g., PlatformException when no hardware is available
+      debugPrint('Auth Exception: $e');
       return false;
     }
   }

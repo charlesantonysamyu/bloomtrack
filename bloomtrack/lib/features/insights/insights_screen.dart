@@ -648,6 +648,38 @@ class InsightsScreen extends ConsumerWidget {
   }
 
   Future<void> _exportToPdf(BuildContext context, double avgCycleLength) async {
+    String? selectedRange = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Select PDF Report Range'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Last 3 Months'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Last 3 Months'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'Last 6 Months'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Last 6 Months'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'All Time'),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('All Time'),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedRange == null) return;
+
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -658,7 +690,9 @@ class InsightsScreen extends ConsumerWidget {
             child: pw.Column(
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
-                pw.Text('Cycle History Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                pw.Text('BloomTrack Cycle History Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 12),
+                pw.Text('Report Range: $selectedRange', style: pw.TextStyle(fontSize: 14)),
                 pw.SizedBox(height: 20),
                 pw.Text('Average Cycle Length: ${avgCycleLength.toStringAsFixed(1)} days', style: pw.TextStyle(fontSize: 18)),
               ],
@@ -668,6 +702,6 @@ class InsightsScreen extends ConsumerWidget {
       ),
     );
 
-    await Printing.sharePdf(bytes: await pdf.save(), filename: 'cycle_report.pdf');
+    await Printing.sharePdf(bytes: await pdf.save(), filename: 'bloomtrack_cycle_report.pdf');
   }
 }
